@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DICE DUEL - GRAN TESORO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            /* 背景格點裝飾 */
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .block-card {
+            background-color: #1e1e1e;
+            border: 2px solid #333;
+            padding: 24px;
+            box-shadow: 6px 6px 0px #000;
+        }
+        .die {
+            width: 70px;
+            height: 70px;
+            background-color: #eee;
+            color: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            box-shadow: 4px 4px 0px #888;
+        }
+        .btn {
+            background-color: #222;
+            padding: 12px 24px;
+            border: 2px solid #555;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            transition: all 0.1s;
+        }
+        .btn:hover:not(:disabled) {
+            background-color: #333;
+            border-color: #fff;
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px #000;
+        }
+        .btn:active:not(:disabled) {
+            transform: translate(0px, 0px);
+            box-shadow: 0px 0px 0px #000;
+        }
+        .btn:disabled {
+            opacity: 0.3;
+        }
+        .rolling {
+            animation: shake 0.1s infinite;
+        }
+        @keyframes shake {
+            0% { transform: rotate(1deg); }
+            50% { transform: rotate(-1deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            border: 1px solid #555;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-app" class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- 左側面板：遊戲規則 -->
+        <div class="md:col-span-1 space-y-6">
+            <div class="block-card">
+                <p class="status-badge">INFO</p>
+                <h2 class="text-xl font-bold mb-4">GAME RULES</h2>
+                <ul class="text-xs space-y-3 opacity-80">
+                    <li>1. SELECT YOUR TEAM (RED/BLUE)</li>
+                    <li>2. ROLL 2 DICE PER TURN</li>
+                    <li>3. TOTAL 2 TURNS PER MATCH</li>
+                    <li>4. HIGHEST TOTAL SUM WINS</li>
+                    <li>5. THE HOUSE ALWAYS WATCHES</li>
+                </ul>
+            </div>
+            <div class="block-card hidden md:block">
+                <p class="status-badge">DECOR</p>
+                <div class="text-[10px] leading-tight opacity-30 font-mono">
+                    GRAN TESORO CASINO SYSTEMS v1.0.4<br>
+                    LOCAL ENCRYPTION ENABLED...<br>
+                    DICE_ENGINE_ACTIVE: TRUE<br>
+                    PROBABILITY_SYNC: 100%
+                </div>
+            </div>
+        </div>
+
+        <!-- 中間面板：主遊戲區 -->
+        <div class="md:col-span-2 space-y-6">
+            <div class="text-center mb-4">
+                <h1 class="text-4xl font-black tracking-[0.3em]">DICE DUEL</h1>
+                <p class="text-[10px] opacity-40 mt-1">ESTABLISHED IN GRAN TESORO</p>
+            </div>
+
+            <!-- 選擇畫面 -->
+            <div id="view-select" class="block-card">
+                <p class="mb-8 font-bold tracking-widest">INITIALIZING CHALLENGER...</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="setup('blue')" class="btn text-blue-400 border-blue-900/50 hover:border-blue-400">BLUE TEAM</button>
+                    <button onclick="setup('red')" class="btn text-red-500 border-red-900/50 hover:border-red-500">RED TEAM</button>
+                </div>
+            </div>
+
+            <!-- 對決畫面 -->
+            <div id="view-battle" class="hidden space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div id="p-card" class="block-card">
+                        <p class="status-badge" id="p-label">CHALLENGER</p>
+                        <p id="p-score" class="text-6xl font-black">0</p>
+                        <div id="p-rolls" class="mt-4 text-xs font-mono opacity-50">HISTORY: -</div>
+                    </div>
+                    <div id="a-card" class="block-card">
+                        <p class="status-badge" id="a-label">OPPONENT</p>
+                        <p id="a-score" class="text-6xl font-black">0</p>
+                        <div id="a-rolls" class="mt-4 text-xs font-mono opacity-50">HISTORY: -</div>
+                    </div>
+                </div>
+
+                <!-- 骰子顯示區 -->
+                <div class="block-card py-12 flex flex-col items-center justify-center gap-8">
+                    <div class="flex gap-8">
+                        <div id="d1" class="die">?</div>
+                        <div id="d2" class="die">?</div>
+                    </div>
+                    <p id="msg" class="text-sm font-bold tracking-widest text-yellow-500">AWAITING INPUT...</p>
+                </div>
+
+                <div class="text-center">
+                    <button id="roll-btn" onclick="userRoll()" class="btn w-full py-5 text-2xl">PULL THE LEVER</button>
+                </div>
+            </div>
+
+            <!-- 結果畫面 -->
+            <div id="view-result" class="hidden block-card">
+                <p class="status-badge">RESULT</p>
+                <h2 id="final-msg" class="text-5xl font-black mb-4">WINNER</h2>
+                <div id="final-stats" class="text-lg font-mono mb-8 p-4 bg-black/30"></div>
+                <button onclick="location.reload()" class="btn w-full">TRY AGAIN</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 骰子點數符號
+        const diceDots = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        let data = {
+            side: '',
+            pScore: 0,
+            aScore: 0,
+            pCount: 0,
+            isBusy: false
+        };
+
+        // 初始化遊戲
+        function setup(side) {
+            data.side = side;
+            document.getElementById('view-select').classList.add('hidden');
+            document.getElementById('view-battle').classList.remove('hidden');
+            
+            const pCard = document.getElementById('p-card');
+            const pLabel = document.getElementById('p-label');
+            const aLabel = document.getElementById('a-label');
+
+            if(side === 'blue') {
+                pCard.style.borderColor = '#3b82f6';
+                pLabel.innerText = 'PLAYER (BLUE)';
+                aLabel.innerText = 'OPPONENT (RED)';
+            } else {
+                pCard.style.borderColor = '#ef4444';
+                pLabel.innerText = 'PLAYER (RED)';
+                aLabel.innerText = 'OPPONENT (BLUE)';
+            }
+            
+            document.getElementById('msg').innerText = "PLAYER TURN - ROUND 1/2";
+        }
+
+        // 擲骰動畫與邏輯
+        async function roll() {
+            const d1 = document.getElementById('d1');
+            const d2 = document.getElementById('d2');
+            d1.classList.add('rolling');
+            d2.classList.add('rolling');
+
+            // 模擬擲骰延遲
+            await new Promise(r => setTimeout(r, 800));
+
+            const v1 = Math.floor(Math.random() * 6) + 1;
+            const v2 = Math.floor(Math.random() * 6) + 1;
+
+            d1.innerText = diceDots[v1-1];
+            d2.innerText = diceDots[v2-1];
+            d1.classList.remove('rolling');
+            d2.classList.remove('rolling');
+
+            return v1 + v2;
+        }
+
+        // 玩家擲骰處理
+        async function userRoll() {
+            if (data.isBusy) return;
+            data.isBusy = true;
+            document.getElementById('roll-btn').disabled = true;
+
+            const sum = await roll();
+            data.pScore += sum;
+            data.pCount++;
+            
+            document.getElementById('p-score').innerText = data.pScore;
+            const h = document.getElementById('p-rolls');
+            h.innerText = h.innerText === 'HISTORY: -' ? `HISTORY: ${sum}` : `${h.innerText}, ${sum}`;
+
+            if (data.pCount < 2) {
+                document.getElementById('msg').innerText = "PLAYER TURN - ROUND 2/2";
+                data.isBusy = false;
+                document.getElementById('roll-btn').disabled = false;
+            } else {
+                document.getElementById('msg').innerText = "OPPONENT'S TURN...";
+                document.getElementById('roll-btn').classList.add('hidden');
+                await new Promise(r => setTimeout(r, 1200));
+                aiTurn();
+            }
+        }
+
+        // AI 擲骰處理
+        async function aiTurn() {
+            const aCard = document.getElementById('a-card');
+            aCard.style.borderColor = data.side === 'blue' ? '#ef4444' : '#3b82f6';
+            
+            for(let i=0; i<2; i++) {
+                const sum = await roll();
+                data.aScore += sum;
+                document.getElementById('a-score').innerText = data.aScore;
+                const h = document.getElementById('a-rolls');
+                h.innerText = h.innerText === 'HISTORY: -' ? `HISTORY: ${sum}` : `${h.innerText}, ${sum}`;
+                
+                if (i === 0) {
+                    document.getElementById('msg').innerText = "OPPONENT'S TURN - FINAL ROUND";
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            await new Promise(r => setTimeout(r, 1000));
+            endGame();
+        }
+
+        // 結束遊戲並顯示結果
+        function endGame() {
+            document.getElementById('view-battle').classList.add('hidden');
+            document.getElementById('view-result').classList.remove('hidden');
+
+            const resMsg = document.getElementById('final-msg');
+            const stats = document.getElementById('final-stats');
+            
+            if (data.pScore > data.aScore) {
+                resMsg.innerText = "YOU WIN";
+                resMsg.className = "text-5xl font-black mb-4 text-green-500";
+            } else if (data.pScore < data.aScore) {
+                resMsg.innerText = "HOUSE WINS";
+                resMsg.className = "text-5xl font-black mb-4 text-red-500";
+            } else {
+                resMsg.innerText = "DRAW";
+                resMsg.className = "text-5xl font-black mb-4 text-yellow-500";
+            }
+            stats.innerText = `YOUR SCORE: ${data.pScore} | HOUSE SCORE: ${data.aScore}`;
+        }
+    </script>
+</body>
+</html>
